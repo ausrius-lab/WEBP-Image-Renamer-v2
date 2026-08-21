@@ -1,16 +1,14 @@
 #!/bin/bash
 # Launcher for the RenameImages.app bundle.
-# Opens a Terminal window and runs the actual worker binary, pointed at
-# the folder the .app itself is sitting in (so it can find 1920px, 992px,
-# 768px, 576px, 375px etc. next to it).
+# Opens a Terminal window and runs the actual worker binary, which will
+# show its own folder-picker dialog to choose the project folder.
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="$DIR/../Resources/rename_images_bin"
-BASE="$(cd "$DIR/../../.." && pwd)"
 
 osascript <<APPLESCRIPT
 tell application "Terminal"
     activate
-    do script "\"$BIN\" \"$BASE\""
+    do script "\"$BIN\""
 end tell
 APPLESCRIPT
