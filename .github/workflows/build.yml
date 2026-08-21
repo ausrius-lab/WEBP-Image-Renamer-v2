@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -29,6 +30,9 @@ jobs:
 
       - name: Install PyInstaller
         run: pip install pyinstaller
+
+      - name: List repo contents (debug)
+        run: ls -la
 
       - name: Build executable
         run: pyinstaller --onefile --name rename_images rename_images.py
