@@ -21,8 +21,8 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      - name: Build executable
-        run: pyinstaller --onefile --name rename_images rename_images.py
+      - name: Build executable (windowed, no console)
+        run: pyinstaller --onefile --windowed --name rename_images rename_images.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -44,19 +44,8 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      - name: Build worker binary
-        run: pyinstaller --onefile --name rename_images_bin rename_images.py
-
-      - name: Assemble .app bundle
-        run: |
-          APP="dist/RenameImages.app"
-          mkdir -p "$APP/Contents/MacOS"
-          mkdir -p "$APP/Contents/Resources"
-          cp dist/rename_images_bin "$APP/Contents/Resources/rename_images_bin"
-          cp mac/launcher.sh "$APP/Contents/MacOS/RenameImages"
-          cp mac/Info.plist "$APP/Contents/Info.plist"
-          chmod +x "$APP/Contents/MacOS/RenameImages"
-          chmod +x "$APP/Contents/Resources/rename_images_bin"
+      - name: Build app bundle (windowed, no terminal)
+        run: pyinstaller --onefile --windowed --name RenameImages rename_images.py
 
       - name: Zip the app bundle (preserves permissions)
         run: |
