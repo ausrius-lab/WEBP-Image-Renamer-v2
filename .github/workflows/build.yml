@@ -7,18 +7,8 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            build_name: rename_images.exe
-            artifact_name: rename-images-windows
-          - os: macos-latest
-            build_name: rename_images
-            artifact_name: rename-images-mac
-    runs-on: ${{ matrix.os }}
+  build-windows:
+    runs-on: windows-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -31,21 +21,56 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      - name: List repo contents (debug)
-        shell: bash
-        run: ls -la
-
       - name: Build executable
         run: pyinstaller --onefile --name rename_images rename_images.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: dist/${{ matrix.build_name }}
+          name: rename-images-windows
+          path: dist/rename_images.exe
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build worker binary
+        run: pyinstaller --onefile --name rename_images_bin rename_images.py
+
+      - name: Assemble .app bundle
+        run: |
+          APP="dist/RenameImages.app"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources"
+          cp dist/rename_images_bin "$APP/Contents/Resources/rename_images_bin"
+          cp mac/launcher.sh "$APP/Contents/MacOS/RenameImages"
+          cp mac/Info.plist "$APP/Contents/Info.plist"
+          chmod +x "$APP/Contents/MacOS/RenameImages"
+          chmod +x "$APP/Contents/Resources/rename_images_bin"
+
+      - name: Zip the app bundle (preserves permissions)
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent RenameImages.app RenameImages-mac.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rename-images-mac
+          path: dist/RenameImages-mac.zip
 
   release:
-    needs: build
+    needs: [build-windows, build-mac]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -59,4 +84,4 @@ jobs:
         with:
           files: |
             rename-images-windows/rename_images.exe
-            rename-images-mac/rename_images
+            rename-images-mac/RenameImages-mac.zip
