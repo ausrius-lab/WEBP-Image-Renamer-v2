@@ -1,13 +1,16 @@
 """
-Responsive image renamer.
+Responsive image renamer (GUI version).
 
-Run it from anywhere (it no longer needs to sit inside the project
-folder). On launch, a folder picker window opens -- select the folder
-that contains your resolution subfolders, and it takes it from there.
+Run it from anywhere -- no terminal/console window appears. On launch, a
+folder picker window opens; select the folder that contains your
+resolution subfolders:
+
+    1920px  1200px  992px  768px  576px  375px
 
 Every .webp/.jpg/.jpeg/.png file inside those folders (including
 subfolders) gets a size suffix appended to its filename, based on which
-folders are actually present.
+folders are actually present. When done, a small "Renaming Complete"
+window reports how many files were renamed in each folder.
 
 Suffixes are assigned by RANK, smallest folder to largest, not by a fixed
 name -> suffix table. The smallest existing folder is always left
@@ -47,42 +50,6 @@ SUFFIXES = ["", "-sm", "-md", "-lg", "-xl", "-xxl"]
 IMAGE_EXTENSIONS = {".webp", ".jpg", ".jpeg", ".png"}
 
 
-def prompt_for_base_dir() -> Path | None:
-    """Show a native folder picker so the user can choose the project folder."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except ImportError:
-        print("Could not open a folder picker (tkinter not available on this system).")
-        print("You can instead run this program from a terminal/command prompt")
-        print("and pass the folder path as an argument.")
-        return None
-
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        selected = filedialog.askdirectory(
-            title="Select the folder containing your resolution folders "
-                  "(1920px, 1200px, 992px, 768px, 576px, 375px)"
-        )
-        root.destroy()
-    except Exception as exc:
-        print(f"Could not open a folder picker: {exc}")
-        return None
-
-    if not selected:
-        return None
-    return Path(selected).resolve()
-
-
-def get_base_dir() -> Path | None:
-    """Folder to process: an explicit argument, or ask via a folder picker."""
-    if len(sys.argv) > 1:
-        return Path(sys.argv[1]).resolve()
-    return prompt_for_base_dir()
-
-
 def build_mapping(base_dir: Path) -> dict:
     """Map each existing resolution folder name to its suffix, by rank."""
     existing = [name for name in SIZE_ORDER if (base_dir / name).is_dir()]
@@ -94,61 +61,95 @@ def already_tagged(stem: str) -> bool:
 
 
 def process_folder(folder: Path, suffix: str) -> int:
-    count = 0
+    """Rename matching image files in folder (recursively). Returns count renamed."""
     if not suffix:
-        print(f"  (left untouched, no suffix for this rank)")
         return 0
 
+    count = 0
     for path in sorted(folder.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in IMAGE_EXTENSIONS:
             continue
 
         stem = path.stem
         if already_tagged(stem):
-            print(f"  skip (already tagged): {path.relative_to(folder)}")
             continue
 
         new_path = path.with_name(f"{stem}{suffix}{path.suffix}")
         if new_path.exists():
-            print(f"  skip (target already exists): {path.relative_to(folder)}")
             continue
 
         path.rename(new_path)
         count += 1
-        print(f"  {path.relative_to(folder)}  ->  {new_path.name}")
 
     return count
 
 
-def main():
-    base_dir = get_base_dir()
+def run(base_dir: Path):
+    """Process base_dir. Returns (mapping, results, total) where results is
+    a list of (folder_name, suffix_label, count_renamed)."""
+    mapping = build_mapping(base_dir)
+    results = []
+    total = 0
+    for name in SIZE_ORDER:
+        if name not in mapping:
+            continue
+        suffix = mapping[name]
+        label = suffix if suffix else "untouched"
+        count = process_folder(base_dir / name, suffix)
+        results.append((name, label, count))
+        total += count
+    return mapping, results, total
 
-    if base_dir is None:
-        print("No folder selected. Nothing to do.")
-        input("\nPress Enter to exit...")
+
+def main():
+    try:
+        import tkinter as tk
+        from tkinter import filedialog, messagebox
+    except ImportError:
+        # No GUI toolkit available -- fall back to console so the program
+        # still does something useful rather than silently failing.
+        print("tkinter is not available on this system; cannot show the "
+              "folder picker or results window.")
         return
 
-    print(f"Base folder: {base_dir}\n")
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes("-topmost", True)
 
-    mapping = build_mapping(base_dir)
+    if len(sys.argv) > 1:
+        # Explicit folder passed in (handy for testing from a terminal).
+        base_dir = Path(sys.argv[1]).resolve()
+    else:
+        selected = filedialog.askdirectory(
+            title="Select the folder containing your resolution folders "
+                  "(1920px, 1200px, 992px, 768px, 576px, 375px)"
+        )
+        if not selected:
+            root.destroy()
+            return
+        base_dir = Path(selected).resolve()
+
+    mapping, results, total = run(base_dir)
 
     if not mapping:
-        print("No resolution folders found here "
-              "(1920px, 1200px, 992px, 768px, 576px, 375px).")
-        print("Make sure you selected the folder that contains those subfolders.")
+        messagebox.showerror(
+            "No resolution folders found",
+            "Couldn't find any of these folders inside the selected "
+            "location:\n\n1920px, 1200px, 992px, 768px, 576px, 375px\n\n"
+            "Make sure you selected the folder that directly contains them."
+        )
     else:
-        total = 0
-        for name in SIZE_ORDER:
-            if name not in mapping:
-                continue
-            suffix = mapping[name]
-            label = suffix if suffix else "untouched"
-            print(f"Processing {name}  [{label}]")
-            total += process_folder(base_dir / name, suffix)
-            print()
-        print(f"Done. Renamed {total} file(s).")
+        lines = []
+        for name, label, count in results:
+            tag = "untouched" if label == "untouched" else label
+            lines.append(f"{name}  [{tag}]  -  {count} renamed")
+        summary = "\n".join(lines)
+        messagebox.showinfo(
+            "Renaming Complete",
+            f"Renamed {total} file(s) total.\n\n{summary}"
+        )
 
-    input("\nPress Enter to exit...")
+    root.destroy()
 
 
 if __name__ == "__main__":
