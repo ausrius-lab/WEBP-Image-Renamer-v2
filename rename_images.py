@@ -1,14 +1,13 @@
 """
 Responsive image renamer.
 
-Place this script (or the compiled .exe / Mac app built from it) inside a
-folder that contains any of these subfolders:
+Run it from anywhere (it no longer needs to sit inside the project
+folder). On launch, a folder picker window opens -- select the folder
+that contains your resolution subfolders, and it takes it from there.
 
-    1920px  1200px  992px  768px  576px  375px
-
-Run it, and every image file (.webp, .jpg, .jpeg, .png) inside those
-folders (including subfolders) gets a size suffix appended to its
-filename, based on which folders are actually present.
+Every .webp/.jpg/.jpeg/.png file inside those folders (including
+subfolders) gets a size suffix appended to its filename, based on which
+folders are actually present.
 
 Suffixes are assigned by RANK, smallest folder to largest, not by a fixed
 name -> suffix table. The smallest existing folder is always left
@@ -48,12 +47,40 @@ SUFFIXES = ["", "-sm", "-md", "-lg", "-xl", "-xxl"]
 IMAGE_EXTENSIONS = {".webp", ".jpg", ".jpeg", ".png"}
 
 
-def get_base_dir() -> Path:
-    """Folder the exe/script is running from."""
-    if getattr(sys, "frozen", False):
-        # PyInstaller-built executable
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
+def prompt_for_base_dir() -> Path | None:
+    """Show a native folder picker so the user can choose the project folder."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError:
+        print("Could not open a folder picker (tkinter not available on this system).")
+        print("You can instead run this program from a terminal/command prompt")
+        print("and pass the folder path as an argument.")
+        return None
+
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        selected = filedialog.askdirectory(
+            title="Select the folder containing your resolution folders "
+                  "(1920px, 1200px, 992px, 768px, 576px, 375px)"
+        )
+        root.destroy()
+    except Exception as exc:
+        print(f"Could not open a folder picker: {exc}")
+        return None
+
+    if not selected:
+        return None
+    return Path(selected).resolve()
+
+
+def get_base_dir() -> Path | None:
+    """Folder to process: an explicit argument, or ask via a folder picker."""
+    if len(sys.argv) > 1:
+        return Path(sys.argv[1]).resolve()
+    return prompt_for_base_dir()
 
 
 def build_mapping(base_dir: Path) -> dict:
@@ -95,6 +122,12 @@ def process_folder(folder: Path, suffix: str) -> int:
 
 def main():
     base_dir = get_base_dir()
+
+    if base_dir is None:
+        print("No folder selected. Nothing to do.")
+        input("\nPress Enter to exit...")
+        return
+
     print(f"Base folder: {base_dir}\n")
 
     mapping = build_mapping(base_dir)
@@ -102,7 +135,7 @@ def main():
     if not mapping:
         print("No resolution folders found here "
               "(1920px, 1200px, 992px, 768px, 576px, 375px).")
-        print("Make sure this program sits in the same folder as those subfolders.")
+        print("Make sure you selected the folder that contains those subfolders.")
     else:
         total = 0
         for name in SIZE_ORDER:
