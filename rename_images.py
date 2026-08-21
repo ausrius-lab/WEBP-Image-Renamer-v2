@@ -6,9 +6,9 @@ folder that contains any of these subfolders:
 
     1920px  1200px  992px  768px  576px  375px
 
-Run it, and every .webp file inside those folders (including subfolders)
-gets a size suffix appended to its filename, based on which folders are
-actually present.
+Run it, and every image file (.webp, .jpg, .jpeg, .png) inside those
+folders (including subfolders) gets a size suffix appended to its
+filename, based on which folders are actually present.
 
 Suffixes are assigned by RANK, smallest folder to largest, not by a fixed
 name -> suffix table. The smallest existing folder is always left
@@ -45,7 +45,7 @@ from pathlib import Path
 SIZE_ORDER = ["375px", "576px", "768px", "992px", "1200px", "1920px"]
 SUFFIXES = ["", "-sm", "-md", "-lg", "-xl", "-xxl"]
 
-IMAGE_EXTENSIONS = {".webp"}
+IMAGE_EXTENSIONS = {".webp", ".jpg", ".jpeg", ".png"}
 
 
 def get_base_dir() -> Path:
