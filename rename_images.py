@@ -12,28 +12,16 @@ subfolders) gets a size suffix appended to its filename, based on which
 folders are actually present. When done, a small "Renaming Complete"
 window reports how many files were renamed in each folder.
 
-Suffixes are assigned by RANK, smallest folder to largest, not by a fixed
-name -> suffix table. The smallest existing folder is always left
-untouched, and the rest get -sm, -md, -lg, -xl, -xxl in order:
+Suffixes are fixed by folder name:
 
-    1st smallest existing folder -> (untouched)
-    2nd smallest existing folder -> -sm
-    3rd smallest existing folder -> -md
-    4th smallest existing folder -> -lg
-    5th smallest existing folder -> -xl
-    6th smallest existing folder -> -xxl
-
-With all six folders present that works out to:
-    375px  -> (untouched)
-    576px  -> -sm
-    768px  -> -md
-    992px  -> -lg
+    1920px -> -xxl   (or -xl if there is no 1200px folder)
     1200px -> -xl
-    1920px -> -xxl
+    992px  -> -lg
+    768px  -> -md
+    576px  -> -sm
+    375px  -> (untouched)
 
-If, say, 1200px is missing, everything above it shifts down one slot, so
-1920px becomes -xl instead of -xxl. Any folder that doesn't exist is simply
-skipped.
+Any folder that doesn't exist is simply skipped.
 
 Example: 768px/image.webp -> 768px/image-md.webp
 Running the tool again is safe -- files that already end in a known
@@ -43,21 +31,33 @@ suffix are left alone.
 import sys
 from pathlib import Path
 
-# Ordered smallest to largest.
+# Processing order (smallest to largest) and fixed suffix per folder name.
 SIZE_ORDER = ["375px", "576px", "768px", "992px", "1200px", "1920px"]
-SUFFIXES = ["", "-sm", "-md", "-lg", "-xl", "-xxl"]
+FOLDER_SUFFIXES = {
+    "375px": "",
+    "576px": "-sm",
+    "768px": "-md",
+    "992px": "-lg",
+    "1200px": "-xl",
+    "1920px": "-xxl",
+}
+ALL_SUFFIXES = [x for x in FOLDER_SUFFIXES.values() if x]
 
 IMAGE_EXTENSIONS = {".webp", ".jpg", ".jpeg", ".png"}
 
 
 def build_mapping(base_dir: Path) -> dict:
-    """Map each existing resolution folder name to its suffix, by rank."""
+    """Map each existing resolution folder name to its suffix (fixed by name)."""
     existing = [name for name in SIZE_ORDER if (base_dir / name).is_dir()]
-    return {name: SUFFIXES[i] for i, name in enumerate(existing)}
+    mapping = {name: FOLDER_SUFFIXES[name] for name in existing}
+    # Special case: with no 1200px folder, the 1920px images get -xl.
+    if "1920px" in mapping and "1200px" not in mapping:
+        mapping["1920px"] = "-xl"
+    return mapping
 
 
 def already_tagged(stem: str) -> bool:
-    return any(suf and stem.endswith(suf) for suf in SUFFIXES)
+    return any(stem.endswith(suf) for suf in ALL_SUFFIXES)
 
 
 def process_folder(folder: Path, suffix: str) -> int:
