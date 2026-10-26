@@ -1,50 +1,41 @@
 # Responsive Image Renamer
 
-Renames `.webp` images inside resolution-named folders by appending a size
-suffix, based on which folders exist.
+Renames `.webp`, `.jpg`, `.jpeg`, and `.png` images inside resolution-named
+folders by appending a size suffix, based on which folders exist.
 
 ## What it does
 
-Put the program in a folder next to any of these subfolders:
+It's a pure GUI app — no terminal or console window at any point.
 
-```
-your-project/
-├── rename_images.exe   (or the Mac binary)
-├── 1920px/
-├── 1200px/
-├── 992px/
-├── 768px/
-├── 576px/
-└── 375px/
-```
+1. Double-click the program (from anywhere — it doesn't need to sit inside
+   the project folder).
+2. A folder picker window opens. Select the folder that contains your
+   resolution subfolders:
 
-Suffixes are assigned by rank, smallest folder to largest — not by a fixed
-name. The smallest folder that exists is always left untouched; the rest get
-`-sm`, `-md`, `-lg`, `-xl`, `-xxl` going up in size:
+   ```
+   your-project/
+   ├── 1920px/
+   ├── 1200px/
+   ├── 992px/
+   ├── 768px/
+   ├── 576px/
+   └── 375px/
+   ```
+3. It renames the files, then shows a small **"Renaming Complete"** window
+   listing how many files were renamed in each folder.
 
-| Rank (smallest → largest) | Suffix   |
-|----------------------------|----------|
-| 1st                        | none     |
-| 2nd                        | `-sm`    |
-| 3rd                        | `-md`    |
-| 4th                        | `-lg`    |
-| 5th                        | `-xl`    |
-| 6th                        | `-xxl`   |
+Suffixes are fixed by folder name:
 
-With all six folders present, that works out to:
+| Folder   | Suffix                                   |
+|----------|------------------------------------------|
+| `1920px` | `-xxl` (or `-xl` if there is no `1200px`) |
+| `1200px` | `-xl`                                    |
+| `992px`  | `-lg`                                    |
+| `768px`  | `-md`                                    |
+| `576px`  | `-sm`                                    |
+| `375px`  | untouched                                |
 
-```
-375px  -> untouched
-576px  -> -sm
-768px  -> -md
-992px  -> -lg
-1200px -> -xl
-1920px -> -xxl
-```
-
-If a folder is missing it's skipped entirely, and everything above it shifts
-down one rank. For example, if `1200px` doesn't exist, `1920px` becomes the
-4th-smallest existing folder, so it gets `-xl` instead of `-xxl`.
+Folders that don't exist are skipped.
 
 Subfolders inside each resolution folder are processed too (recursively).
 Running the tool more than once is safe — files that already end in a known
@@ -55,12 +46,17 @@ Example: `768px/image.webp` → `768px/image-md.webp`
 ## Running it
 
 - **Windows:** double-click `rename_images.exe`.
-- **Mac:** double-click the `rename_images` binary, or run it from Terminal
-  (`./rename_images`). The first time, you may need to right-click → Open
-  once to get past Gatekeeper, since the binary isn't code-signed.
+- **Mac:** you'll get `RenameImages-mac.zip` from the Releases page. Unzip it
+  (double-click the zip if it doesn't auto-extract), then double-click
+  `RenameImages.app` from anywhere.
+  - The very first time, macOS will likely block it since it's not from an
+    identified developer. Go to **System Settings → Privacy & Security**,
+    scroll down, and click **"Open Anyway"** next to the RenameImages
+    message, then double-click the app again. You only need to do this once.
 
-A console window will show what was renamed, then wait for you to press
-Enter before closing.
+Either way: pick the folder in the dialog, wait a moment, then read the
+results in the popup that appears. No windows are left open afterward —
+just click OK to dismiss it.
 
 ## Building the executables yourself (via GitHub Actions)
 
@@ -74,8 +70,8 @@ builds both binaries for you — no local setup needed:
    git push origin v1.0.0
    ```
 3. GitHub Actions will build `rename_images.exe` (Windows) and
-   `rename_images` (Mac), then attach both to a new GitHub Release
-   automatically.
+   `RenameImages-mac.zip` (Mac, containing a double-clickable `.app`),
+   then attach both to a new GitHub Release automatically.
 4. Share the Release link — anyone can download the right file for their OS.
 
 You can also trigger a build manually anytime from the **Actions** tab
@@ -84,10 +80,16 @@ downloadable artifacts on that run.
 
 ## Running it without building (for testing)
 
-If you have Python 3 installed, you can just run:
+If you have Python 3 installed (with tkinter, which ships with most
+standard installs), you can just run:
 
 ```
 python3 rename_images.py
 ```
 
-from inside the project folder — no build needed.
+You can also skip the folder-picker dialog by passing a path directly,
+handy for quick testing from a terminal:
+
+```
+python3 rename_images.py /path/to/your/project
+```
